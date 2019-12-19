@@ -4,6 +4,8 @@ import * as Monaco from 'monaco-editor'
 import { MonacoEditor } from '../../components/MonacoEditor'
 import { QueryState } from '../helpers'
 import { parseSearchQuery } from '../../../../shared/src/search/parser/parser'
+import { getDiagnostics } from '../../../../shared/src/search/parser/diagnostics'
+import { getMonacoTokens } from '../../../../shared/src/search/parser/tokens'
 
 export interface MonacoQueryInputProps {
     queryState: QueryState
@@ -15,7 +17,7 @@ const SOURCEGRAPH_SEARCH: 'sourcegraphSearch' = 'sourcegraphSearch'
 
 const STATE: Monaco.languages.IState = {
     clone: () => ({ ...STATE }),
-    equals: () => true,
+    equals: () => false,
 }
 
 const makeEditorHype = once((monaco: typeof Monaco) => {
@@ -24,98 +26,15 @@ const makeEditorHype = once((monaco: typeof Monaco) => {
 
     monaco.languages.setTokensProvider(SOURCEGRAPH_SEARCH, {
         getInitialState: () => STATE,
-        tokenize: (line, state) => {
-            const result = parseSearchQuery(line, 0)
+        tokenize: line => {
+            const result = parseSearchQuery(line)
             if (result.type === 'error') {
                 return { tokens: [], endState: STATE }
             }
             return {
-                tokens: result.token.members.map(({ token, range }): Monaco.languages.IToken => ({})),
+                tokens: getMonacoTokens(result.token),
                 endState: STATE,
             }
-        },
-    })
-
-    monaco.languages.setMonarchTokensProvider(SOURCEGRAPH_SEARCH, {
-        keywords: [
-            'repo',
-            'r',
-            '-repo',
-            '-r',
-            'lang',
-            'language',
-            'file',
-            'f',
-            '-file',
-            '-f',
-            'case',
-            'repohasfile',
-            'repohascommitafter',
-        ].map(s => `${s}:`),
-        tokenizer: {
-            root: [
-                [
-                    /[^\s:]+:?/,
-                    {
-                        cases: {
-                            '@keywords': 'keyword',
-                            '@default': 'identifier',
-                        },
-                    },
-                ],
-                { include: '@whitespace' },
-            ],
-            whitespace: [[/\s+/, 'white']],
-        },
-    } as any)
-    monaco.languages.registerCompletionItemProvider(SOURCEGRAPH_SEARCH, {
-        provideCompletionItems: (model, position, context, token) => {
-            return {
-                suggestions: [
-                    { label: 'repo:', detail: 'Limit results to repositories matching this pattern.' },
-                    { label: '-repo:', detail: 'Exclude repositories matching this pattern.' },
-                    { label: 'repogroup:', detail: 'Include results from the named group.' },
-                    { label: 'repohascommitafter:', detail: 'Filter out stale repositories without recent commits.' },
-                    { label: 'lang:', detail: 'Include only results from the given language.' },
-                    { label: 'file:', detail: 'Include only results from files matching this pattern.' },
-                    { label: '-file:', detail: 'Exclude files matching this pattern from results.' },
-                    { label: 'case:', detail: 'Whether the search pattern is case-sensitive.' },
-                    { label: 'repohasfile:', detail: 'Include only repositories including a given file.' },
-                ].map(
-                    ({ label, detail }): Monaco.languages.CompletionItem =>
-                        ({
-                            label,
-                            detail,
-                            kind: Monaco.languages.CompletionItemKind.Keyword,
-                            insertText: label,
-                        } as any)
-                ),
-            }
-        },
-    })
-
-    monaco.languages.registerHoverProvider(SOURCEGRAPH_SEARCH, {
-        provideHover: (model, position, token): Monaco.languages.Hover | null => {
-            if (model.getWordAtPosition(position)?.word === 'lang') {
-                return {
-                    contents: [
-                        {
-                            value: `**\`lang:\` filter**\n\nInclude only results matching a language.
-                        `,
-                        },
-                    ],
-                }
-            } else if (model.getWordAtPosition(position)?.word === 'file') {
-                return {
-                    contents: [
-                        {
-                            value: `**\`file:\` filter**\n\nInclude only results from files matching this pattern.
-                        `,
-                        },
-                    ],
-                }
-            }
-            return null
         },
     })
 })
@@ -127,7 +46,7 @@ export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = 
 }) => {
     let monaco: typeof Monaco | null = null
     let editor: Monaco.editor.ICodeEditor | null = null
-    const stripNewlines = (q: string) => q.replace(/[\n\r]+/g, '')
+    const stripNewlines = (q: string): string => q.replace(/[\n\r]+/g, '')
     const editorWillMount = React.useCallback((e: typeof Monaco): void => {
         monaco = e
         makeEditorHype(monaco)
@@ -154,6 +73,10 @@ export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = 
         const modelDisposable = monaco.editor.onDidCreateModel(m => {
             m.onDidChangeContent(() => {
                 const query = stripNewlines(m.getValue())
+                const parsed = parseSearchQuery(m.getValue())
+                if (parsed.type === 'success') {
+                    monaco?.editor.setModelMarkers(m, 'sourcegraph', getDiagnostics(parsed.token))
+                }
                 onChange({ query, cursorPosition: query.length })
             })
             modelDisposable.dispose()
@@ -178,6 +101,7 @@ export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = 
         rulers: [],
         overviewRulerLanes: 0,
         wordBasedSuggestions: false,
+        quickSuggestions: false,
     }
     const actions: Monaco.editor.IActionDescriptor[] = [
         // {
@@ -189,11 +113,11 @@ export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = 
     ]
     return (
         <MonacoEditor
-            id={'monaco-search-field'}
+            id='monaco-search-field'
             language={SOURCEGRAPH_SEARCH}
             value={queryState.query}
             height={35}
-            theme={'sourcegraph-dark'}
+            theme='sourcegraph-dark'
             editorWillMount={editorWillMount}
             options={options}
             actions={actions}
