@@ -166,13 +166,13 @@ const pattern = <T = Word>(p: RegExp, output?: T, expected?: string): Parser<T> 
 
 const whitespace = pattern(/\s+/, { type: 'whitespace' as const }, 'whitespace')
 
-const literal = pattern(/[^\s"]+/)
+const literal = pattern(/[^\s]+/)
 
 const filterKeyword = pattern(/-?[a-z]+(?=:)/)
 
 const filterDelimiter = character(':')
 
-const filterValue = pattern(/[^:\s]+/)
+const filterValue = oneOf(pattern(/[^:\s]+/), eof)
 
 const filter: Parser<Filter> = (input, start) => {
     const parsedKeyword = filterKeyword(input, start)
@@ -193,7 +193,19 @@ const filter: Parser<Filter> = (input, start) => {
         token: {
             type: 'filter',
             filterType: parsedKeyword,
-            filterValue: parsedValue,
+            filterValue:
+                parsedValue.token.type === 'eof'
+                    ? {
+                          token: {
+                              type: 'word' as const,
+                              value: '',
+                          },
+                          range: {
+                              start: parsedValue.range.start - 1,
+                              end: parsedValue.range.end - 1,
+                          },
+                      }
+                    : parsedValue as ParseSuccess<Word>,
         },
     }
 }

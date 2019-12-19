@@ -1,11 +1,10 @@
-import { once } from 'lodash'
-import React, { useEffect, useCallback, useRef, useState } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import * as Monaco from 'monaco-editor'
 import { MonacoEditor } from '../../components/MonacoEditor'
 import { QueryState } from '../helpers'
-import { parseSearchQuery } from '../../../../shared/src/search/parser/parser'
-import { getDiagnostics } from '../../../../shared/src/search/parser/diagnostics'
-import { getMonacoTokens } from '../../../../shared/src/search/parser/tokens'
+import { getProviders } from '../../../../shared/src/search/parser/providers'
+import { ReplaySubject, Subscription, Observable } from 'rxjs'
+import { fetchSuggestions } from '../backend'
 
 export interface MonacoQueryInputProps {
     queryState: QueryState
@@ -15,73 +14,79 @@ export interface MonacoQueryInputProps {
 
 const SOURCEGRAPH_SEARCH: 'sourcegraphSearch' = 'sourcegraphSearch'
 
-const STATE: Monaco.languages.IState = {
-    clone: () => ({ ...STATE }),
-    equals: () => false,
-}
+function addSouregraphSearchCodeIntelligence(monaco: typeof Monaco, searchQueries: Observable<string>, changeQuery: (query: string) => void): Subscription {
+    const subscriptions = new Subscription()
 
-const makeEditorHype = once((monaco: typeof Monaco) => {
-    monaco.languages.register({ id: SOURCEGRAPH_SEARCH })
-    // Register a tokens provider for the language
+    const disposables: Monaco.IDisposable[] = []
 
-    monaco.languages.setTokensProvider(SOURCEGRAPH_SEARCH, {
-        getInitialState: () => STATE,
-        tokenize: line => {
-            const result = parseSearchQuery(line)
-            if (result.type === 'error') {
-                return { tokens: [], endState: STATE }
-            }
-            return {
-                tokens: getMonacoTokens(result.token),
-                endState: STATE,
-            }
-        },
+    subscriptions.add(() => {
+        for (const disposable of disposables) {
+            disposable.dispose()
+        }
     })
-})
+
+    monaco.languages.register({ id: SOURCEGRAPH_SEARCH })
+
+    monaco.editor.defineTheme('sourcegraph-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        colors: {
+            'editor.background': '#0E121B',
+            'editor.foreground': '#F2F4F8',
+            'editorCursor.foreground': '#A2B0CD',
+            'editor.selectionBackground': '#1C7CD650',
+            'editor.selectionHighlightBackground': '#1C7CD625',
+            'editor.inactiveSelectionBackground': '#1C7CD625',
+        },
+        rules: [],
+    })
+
+    monaco.editor.setTheme('sourcegraph-dark')
+
+    const providers = getProviders(searchQueries, fetchSuggestions)
+
+    disposables.push(
+        monaco.languages.setTokensProvider(SOURCEGRAPH_SEARCH, providers.tokens)
+    )
+
+    disposables.push(
+        monaco.languages.registerHoverProvider(SOURCEGRAPH_SEARCH, providers.hover)
+    )
+
+    disposables.push(
+        monaco.languages.registerCompletionItemProvider(SOURCEGRAPH_SEARCH, providers.completion)
+    )
+
+    let diagnosticsSubscription = new Subscription()
+    disposables.push(
+        monaco.editor.onDidCreateModel(model => {
+            disposables.push(
+                model.onDidChangeContent(e => {
+                    changeQuery(model.getValue().replace(/[\n\r↵]/g, ''))
+                })
+            )
+            diagnosticsSubscription.unsubscribe()
+            diagnosticsSubscription = providers.diagnostics.subscribe(markers => {
+                monaco.editor.setModelMarkers(model, 'diagnostics', markers)
+            })
+        })
+    )
+
+    subscriptions.add(() => diagnosticsSubscription.unsubscribe())
+
+    return subscriptions
+}
 
 export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = ({
     queryState,
     onChange,
     onSubmit,
 }) => {
-    let monaco: typeof Monaco | null = null
-    let editor: Monaco.editor.ICodeEditor | null = null
-    const stripNewlines = (q: string): string => q.replace(/[\n\r]+/g, '')
-    const editorWillMount = React.useCallback((e: typeof Monaco): void => {
-        monaco = e
-        makeEditorHype(monaco)
-        monaco.editor.defineTheme('sourcegraph-dark', {
-            base: 'vs-dark',
-            inherit: true,
-            colors: {
-                'editor.background': '#0E121B',
-                'editor.foreground': '#F2F4F8',
-                'editorCursor.foreground': '#A2B0CD',
-                'editor.selectionBackground': '#1C7CD650',
-                'editor.selectionHighlightBackground': '#1C7CD625',
-                'editor.inactiveSelectionBackground': '#1C7CD625',
-            },
-            rules: [],
-        })
-
-        // Only listen to 1 event each to avoid receiving events from other Monaco editors on the
-        // same page (if there are multiple).
-        const editorDisposable = monaco.editor.onDidCreateEditor(e => {
-            editor = editor
-            editorDisposable.dispose()
-        })
-        const modelDisposable = monaco.editor.onDidCreateModel(m => {
-            m.onDidChangeContent(() => {
-                const query = stripNewlines(m.getValue())
-                const parsed = parseSearchQuery(m.getValue())
-                if (parsed.type === 'success') {
-                    monaco?.editor.setModelMarkers(m, 'sourcegraph', getDiagnostics(parsed.token))
-                }
-                onChange({ query, cursorPosition: query.length })
-            })
-            modelDisposable.dispose()
-        })
-    }, [])
+    const queryUpdates = useMemo(() => new ReplaySubject<string>(1), [])
+    useEffect(() => queryUpdates.next(queryState.query), [queryState.query, queryUpdates])
+    const editorWillMount = React.useCallback((monaco: typeof Monaco) => {
+        addSouregraphSearchCodeIntelligence(monaco, queryUpdates, query => onChange({ query, cursorPosition: 0}))
+    }, [ queryUpdates, onChange])
     const options: Monaco.editor.IEditorOptions = {
         readOnly: false,
         lineNumbers: 'off',
@@ -96,21 +101,13 @@ export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = 
         },
         // glyphMargin: false,
         // lineDecorationsWidth: 0,
-        // lineNumbersMinChars: 0,
+        lineNumbersMinChars: 0,
         // folding: false,
         rulers: [],
         overviewRulerLanes: 0,
         wordBasedSuggestions: false,
         quickSuggestions: false,
     }
-    const actions: Monaco.editor.IActionDescriptor[] = [
-        // {
-        //     id: 'submitSearch',
-        //     label: 'Submit Sourcegraph search',
-        //     keybindings: [Monaco.KeyCode.Enter],
-        //     run: () => {},
-        // },
-    ]
     return (
         <MonacoEditor
             id='monaco-search-field'
@@ -120,7 +117,6 @@ export const MonacoQueryInput: React.FunctionComponent<MonacoQueryInputProps> = 
             theme='sourcegraph-dark'
             editorWillMount={editorWillMount}
             options={options}
-            actions={actions}
             className="flex-grow-1"
         ></MonacoEditor>
     )
