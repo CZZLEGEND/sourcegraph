@@ -26,12 +26,13 @@ interface Props {
     /** Options for the editor. */
     options: monaco.editor.IEditorOptions
     className?: string
+    actions?: monaco.editor.IActionDescriptor[]
 }
 
 interface State {}
 
 export class MonacoEditor extends React.PureComponent<Props, State> {
-    private editor: monaco.editor.ICodeEditor | undefined
+    private editor: monaco.editor.IStandaloneCodeEditor | undefined
 
     private setRef = (e: HTMLElement | null): void => {
         if (!e) {
@@ -45,6 +46,11 @@ export class MonacoEditor extends React.PureComponent<Props, State> {
             theme: this.props.theme,
             ...this.props.options,
         })
+        if (this.props.actions) {
+            for (const a of this.props.actions) {
+                this.editor.addAction(a)
+            }
+        }
     }
 
     public componentDidUpdate(prevProps: Props): void {

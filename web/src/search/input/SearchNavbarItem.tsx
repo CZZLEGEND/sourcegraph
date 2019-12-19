@@ -3,9 +3,9 @@ import React, { useCallback } from 'react'
 import { ActivationProps } from '../../../../shared/src/components/activation/Activation'
 import { Form } from '../../components/Form'
 import { submitSearch, QueryState } from '../helpers'
-import { QueryInput } from './QueryInput'
 import { SearchButton } from './SearchButton'
 import { PatternTypeProps } from '..'
+import { MonacoQueryInput } from './MonacoQueryInput'
 
 interface Props extends ActivationProps, PatternTypeProps {
     location: H.Location
@@ -31,26 +31,17 @@ export const SearchNavbarItem: React.FunctionComponent<Props> = ({
     // in the page).
     const autoFocus = location.pathname === '/search'
 
-    const onSubmit = useCallback(
-        (e: React.FormEvent<HTMLFormElement>): void => {
-            e.preventDefault()
-            submitSearch(history, navbarSearchState.query, 'nav', patternType, activation)
-        },
-        [history, navbarSearchState.query, patternType, activation]
-    )
+    const onSubmit = (): void => {
+        submitSearch(history, navbarSearchState.query, 'nav', patternType, activation)
+    }
+
+    const onFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+    }
 
     return (
-        <Form className="search search--navbar-item d-flex align-items-start flex-grow-1" onSubmit={onSubmit}>
-            <QueryInput
-                value={navbarSearchState}
-                onChange={onChange}
-                autoFocus={autoFocus ? 'cursor-at-end' : undefined}
-                hasGlobalQueryBehavior={true}
-                location={location}
-                history={history}
-                patternType={patternType}
-                setPatternType={setPatternType}
-            />
+        <Form className="search search--navbar-item d-flex align-items-start flex-grow-1" onSubmit={onFormSubmit}>
+            <MonacoQueryInput onChange={onChange} queryState={navbarSearchState} onSubmit={onSubmit}></MonacoQueryInput>
             <SearchButton />
         </Form>
     )

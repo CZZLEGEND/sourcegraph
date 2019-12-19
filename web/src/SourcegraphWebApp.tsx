@@ -292,6 +292,7 @@ class ColdSourcegraphWebApp extends React.Component<SourcegraphWebAppProps, Sour
     }
 
     public render(): React.ReactFragment | null {
+        console.log('render', this.state.navbarSearchQueryState.query)
         if (window.pageError && window.pageError.statusCode !== 404) {
             const statusCode = window.pageError.statusCode
             const statusText = window.pageError.statusText
@@ -382,7 +383,8 @@ class ColdSourcegraphWebApp extends React.Component<SourcegraphWebAppProps, Sour
     }
 
     private onNavbarQueryChange = (navbarSearchQueryState: QueryState): void => {
-        this.setState({ navbarSearchQueryState })
+        console.log({ navbarSearchQueryState })
+        this.setState({ navbarSearchQueryState }, () => console.log('query set'))
     }
 
     private onFiltersInQueryChange = (filtersInQuery: FiltersToTypeAndValue): void => {
