@@ -31,7 +31,7 @@ require (
 	github.com/dhui/dktest v0.3.1 // indirect
 	github.com/dnaeon/go-vcr v1.0.1
 	github.com/docker/distribution v2.7.1+incompatible // indirect
-	github.com/docker/docker v0.7.3-0.20190817195342-4760db040282
+	github.com/docker/docker v1.13.1
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/emersion/go-imap v1.0.2
 	github.com/emersion/go-sasl v0.0.0-20191210011802-430746ea8b9b // indirect
@@ -58,8 +58,8 @@ require (
 	github.com/go-redsync/redsync v1.3.1
 	github.com/gobwas/glob v0.2.3
 	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/golang-migrate/migrate/v4 v4.7.0
-	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
+	github.com/golang-migrate/migrate/v4 v4.7.1
+	github.com/golang/gddo v0.0.0-20191216155521-fbfc0f5e7810
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9
 	github.com/golangci/gocyclo v0.0.0-20180528144436-0a533e8fa43d // indirect
 	github.com/golangci/golangci-lint v1.21.0
@@ -108,11 +108,11 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/leanovate/gopter v0.2.4
 	github.com/leodido/go-urn v1.2.0 // indirect
-	github.com/lib/pq v1.2.0
+	github.com/lib/pq v1.3.0
 	github.com/lightstep/lightstep-tracer-go v0.18.1
 	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/mattn/go-runewidth v0.0.7 // indirect
-	github.com/mattn/go-sqlite3 v2.0.1+incompatible
+	github.com/mattn/go-sqlite3 v2.0.2+incompatible
 	github.com/mattn/goreman v0.3.5
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
 	github.com/microcosm-cc/bluemonday v1.0.2
@@ -162,7 +162,7 @@ require (
 	github.com/spf13/viper v1.6.1 // indirect
 	github.com/sqs/httpgzip v0.0.0-20180622165210-91da61ed4dff
 	github.com/src-d/enry/v2 v2.1.0
-	github.com/stripe/stripe-go v68.2.0+incompatible
+	github.com/stripe/stripe-go v68.3.0+incompatible
 	github.com/temoto/robotstxt v1.1.1
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
 	github.com/uber/gonduit v0.6.1
@@ -179,15 +179,15 @@ require (
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/automaxprocs v1.2.0
 	golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff // indirect
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
+	golang.org/x/crypto v0.0.0-20191219195013-becbf705a915
 	golang.org/x/exp v0.0.0-20191129062945-2f5052295587 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449
+	golang.org/x/sys v0.0.0-20191219235734-af0d71d358ab
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	golang.org/x/tools v0.0.0-20191213032237-7093a17b0467
+	golang.org/x/tools v0.0.0-20191219230827-5e752206af05
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20191206224255-0243a4be9c8f // indirect
